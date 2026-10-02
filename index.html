@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cowork — liste des maquettes (maquette)</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100">
+  <div id="root" class="h-screen"></div>
+  <script>
+const { useState, useEffect } = React;
+const h = React.createElement;
+
+// ============================================================
+// ICONES (SVG inline)
+// ============================================================
+const createIcon = (paths) => function Icone(props) {
+  const { className = '', size = 16 } = props || {};
+  return h('svg', { xmlns: 'http://www.w3.org/2000/svg', width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', className, 'aria-hidden': true },
+    ...paths.map((p, i) => typeof p === 'string' ? h('path', { key: i, d: p }) : h(p.tag, { key: i, ...p.attrs })));
+};
+const MessageSquare = createIcon(['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z']);
+const ChevronDown = createIcon([{tag:'polyline',attrs:{points:'6 9 12 15 18 9'}}]);
+const ArrowLeft = createIcon([{tag:'line',attrs:{x1:19,y1:12,x2:5,y2:12}},{tag:'polyline',attrs:{points:'12 19 5 12 12 5'}}]);
+const X = createIcon([{tag:'line',attrs:{x1:18,y1:6,x2:6,y2:18}},{tag:'line',attrs:{x1:6,y1:6,x2:18,y2:18}}]);
+const Send = createIcon([{tag:'line',attrs:{x1:22,y1:2,x2:11,y2:13}},{tag:'polygon',attrs:{points:'22 2 15 22 11 13 2 9 22 2'}}]);
+const Check = createIcon([{tag:'polyline',attrs:{points:'20 6 9 17 4 12'}}]);
+const Clock = createIcon([{tag:'circle',attrs:{cx:12,cy:12,r:10}},{tag:'polyline',attrs:{points:'12 6 12 12 16 14'}}]);
+const FileText = createIcon(['M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z',{tag:'polyline',attrs:{points:'14 2 14 8 20 8'}},{tag:'line',attrs:{x1:16,y1:13,x2:8,y2:13}},{tag:'line',attrs:{x1:16,y1:17,x2:8,y2:17}}]);
+const Plus = createIcon([{tag:'line',attrs:{x1:12,y1:5,x2:12,y2:19}},{tag:'line',attrs:{x1:5,y1:12,x2:19,y2:12}}]);
+const Info = createIcon([{tag:'circle',attrs:{cx:12,cy:12,r:10}},{tag:'line',attrs:{x1:12,y1:16,x2:12,y2:12}},{tag:'line',attrs:{x1:12,y1:8,x2:12.01,y2:8}}]);
+const Layout = createIcon([{tag:'rect',attrs:{width:18,height:18,x:3,y:3,rx:2}},{tag:'line',attrs:{x1:3,y1:9,x2:21,y2:9}},{tag:'line',attrs:{x1:9,y1:21,x2:9,y2:9}}]);
+const Globe = createIcon([{tag:'circle',attrs:{cx:12,cy:12,r:10}},{tag:'line',attrs:{x1:2,y1:12,x2:22,y2:12}},'M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z']);
+const RefreshCw = createIcon([{tag:'polyline',attrs:{points:'23 4 23 10 17 10'}},{tag:'polyline',attrs:{points:'1 20 1 14 7 14'}},'M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15']);
+
+// ============================================================
+// DONNEES D'EXEMPLE (fictives)
+// Source visée dans le vrai écran : les ordres « ouvrir » de nature
+// « adresse » posés par un agent (titre, adresse, bureau, agent, date).
+// L'état (en attente d'avis / validée) n'existe pas encore : à décider.
+// ============================================================
+const BUREAU_ACTIF = 'Projet portail';
+
+const ETATS = {
+  attente: { mot: 'En attente de votre avis', court: 'En attente', icone: Clock, pastille: 'bg-amber-50 text-amber-800 border-amber-200' },
+  validee: { mot: 'Validée',                  court: 'Validée',    icone: Check, pastille: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
+};
+
+const AGENTS = { GA: { nom: 'Gaspé', couleur: 'bg-teal-600' }, MA: { nom: 'Matane', couleur: 'bg-indigo-600' } };
+
+const MAQUETTES = [
+  { id: 'm1', titre: 'Écran des soumissions', bureau: 'Projet portail',  agent: 'GA', date: 'aujourd’hui, 10 h 42', etat: 'attente', adresse: 'https://exemple-client.github.io/portail-soumissions/' },
+  { id: 'm2', titre: 'Formulaire de demande de devis', bureau: 'Projet portail', agent: 'GA', date: '29 sept. 2026', etat: 'attente', adresse: 'https://exemple-client.github.io/portail-devis/' },
+  { id: 'm3', titre: 'Accueil du portail client', bureau: 'Projet portail', agent: 'GA', date: '24 sept. 2026', etat: 'validee', adresse: 'https://exemple-client.github.io/portail-accueil/' },
+  { id: 'm4', titre: 'Tableau de bord des stocks', bureau: 'Inventaire', agent: 'MA', date: '30 sept. 2026', etat: 'validee', adresse: 'https://exemple-client.github.io/inventaire-tableau-de-bord/' },
+  { id: 'm5', titre: 'Menu de navigation mobile', bureau: 'Refonte du site', agent: 'GA', date: '18 sept. 2026', etat: 'validee', adresse: 'https://exemple-client.github.io/site-menu-mobile/' },
+];
+
+const DOCUMENTS = [{ cle: 'd1', nature: 'document', titre: 'Compte rendu — 30 sept.' }];
+
+const sansSchema = (a) => a.replace(/^https:\/\//, '').replace(/\/$/, '');
+
+// ============================================================
+// MENU MAQUETTES
+// ============================================================
+function BoutonMaquettes({ ouvert, enAttente, onClick }) {
+  return h('button', {
+    type: 'button', onClick, 'aria-expanded': ouvert, 'aria-haspopup': 'dialog',
+    className: 'inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-[12px] transition-colors ' +
+      (ouvert ? 'border-teal-500 bg-teal-50 text-teal-900' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'),
+  },
+    h(Layout, { size: 14, className: ouvert ? 'text-teal-700' : 'text-slate-500' }),
+    h('span', { className: 'font-semibold' }, 'Maquettes'),
+    enAttente > 0
+      ? h('span', { className: 'rounded-full bg-amber-400 px-1.5 text-[10px] font-bold leading-[16px] text-slate-900', title: enAttente + ' en attente de votre avis' }, enAttente)
+      : null,
+    h(ChevronDown, { size: 13, className: 'text-slate-400 transition-transform ' + (ouvert ? 'rotate-180' : '') }));
+}
+
+function Pastille({ etat }) {
+  const e = ETATS[etat];
+  return h('span', { className: 'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ' + e.pastille },
+    h(e.icone, { size: 11 }), e.court);
+}
+
+function LigneMaquette({ m, ouverte, onOuvrir }) {
+  const a = AGENTS[m.agent];
+  return h('li', null,
+    h('button', { type: 'button', onClick: () => onOuvrir(m),
+      className: 'group w-full text-left px-4 py-2.5 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none' },
+      h('div', { className: 'flex items-start gap-3' },
+        h('span', { className: 'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-500 group-hover:border-teal-300 group-hover:text-teal-700' }, h(Layout, { size: 15 })),
+        h('div', { className: 'min-w-0 flex-1' },
+          h('div', { className: 'flex items-start justify-between gap-2' },
+            h('p', { className: 'text-[13px] font-semibold text-slate-900 leading-snug group-hover:text-teal-800' }, m.titre),
+            h(Pastille, { etat: m.etat })),
+          h('p', { className: 'mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[12px] text-slate-500' },
+            h('span', { className: 'inline-flex items-center gap-1' },
+              h('span', { className: 'flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-semibold text-white ' + a.couleur }, m.agent),
+              a.nom),
+            h('span', null, '·'), h('span', null, 'Bureau ' + m.bureau),
+            h('span', null, '·'), h('span', null, m.date)),
+          h('p', { className: 'mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-400' },
+            h('span', { className: 'truncate' }, sansSchema(m.adresse)),
+            ouverte ? h('span', { className: 'shrink-0 rounded bg-teal-50 px-1 text-teal-700' }, 'déjà ouverte') : null)))));
+}
+
+function ListeVide({ portee, autres, onTous }) {
+  if (portee === 'bureau' && autres > 0) {
+    return h('div', { className: 'px-6 py-8 text-center' },
+      h('p', { className: 'text-[13px] font-semibold text-slate-700' }, 'Aucune maquette dans ce bureau'),
+      h('p', { className: 'mt-1 text-[12px] text-slate-500' }, 'Vos autres bureaux en ont ' + autres + '.'),
+      h('button', { type: 'button', onClick: onTous, className: 'mt-3 rounded-md border border-slate-300 px-3 py-1.5 text-[12px] text-slate-700 hover:bg-slate-50' }, 'Voir tous les bureaux'));
+  }
+  return h('div', { className: 'px-6 py-10 text-center' },
+    h('span', { className: 'mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-400' }, h(Layout, { size: 20 })),
+    h('p', { className: 'mt-3 text-[14px] font-semibold text-slate-800' }, 'Aucune maquette publiée pour l’instant'),
+    h('p', { className: 'mt-1 text-[12px] text-slate-500 leading-snug' }, 'Quand un agent vous montre une maquette, elle s’ajoute ici et reste disponible.'),
+    h('p', { className: 'mt-3 inline-flex items-center gap-1.5 rounded-md bg-teal-50 px-2.5 py-1.5 text-[12px] text-teal-800' },
+      h(MessageSquare, { size: 12 }), 'Demandez-en une dans la conversation'));
+}
+
+function PanneauMaquettes({ maquettes, ouvertes, onOuvrir, onFermer }) {
+  const [portee, setPortee] = useState('bureau');
+  const [filtre, setFiltre] = useState('toutes');
+  const dansPortee = maquettes.filter((m) => portee === 'tous' || m.bureau === BUREAU_ACTIF);
+  const nb = (k) => dansPortee.filter((m) => m.etat === k).length;
+  const visibles = dansPortee.filter((m) => filtre === 'toutes' || m.etat === filtre);
+  const autres = maquettes.filter((m) => m.bureau !== BUREAU_ACTIF).length;
+
+  const onglet = (k, mot) => h('button', { key: k, type: 'button', onClick: () => setPortee(k), 'aria-pressed': portee === k,
+    className: 'flex-1 rounded-md px-2 py-1 text-[12px] ' + (portee === k ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900') }, mot);
+  const puce = (k, mot) => h('button', { key: k, type: 'button', onClick: () => setFiltre(k), 'aria-pressed': filtre === k,
+    className: 'rounded-full border px-2.5 py-0.5 text-[11px] ' + (filtre === k ? 'border-teal-500 bg-teal-50 font-semibold text-teal-900' : 'border-slate-200 text-slate-600 hover:bg-slate-50') }, mot);
+
+  return h('div', {
+    role: 'dialog', 'aria-label': 'Maquettes publiées',
+    className: 'fixed inset-x-0 bottom-0 z-30 flex max-h-[85vh] flex-col rounded-t-2xl border border-slate-200 bg-white shadow-2xl ' +
+      'sm:absolute sm:inset-x-auto sm:bottom-auto sm:left-3 sm:top-[52px] sm:w-[420px] sm:max-h-[calc(100vh-80px)] sm:rounded-xl',
+  },
+    h('div', { className: 'shrink-0 px-4 pt-4 pb-3' },
+      h('div', { className: 'flex items-start gap-3' },
+        h('div', { className: 'min-w-0 flex-1' },
+          h('p', { className: 'text-[16px] font-semibold text-slate-900 leading-tight' }, 'Maquettes publiées'),
+          h('p', { className: 'text-[12px] text-slate-500 mt-0.5' }, 'Ce que vos agents vous ont montré. Un clic l’ouvre dans un onglet de ce bureau.')),
+        h('button', { type: 'button', onClick: onFermer, className: 'rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700', 'aria-label': 'Fermer' }, h(X, { size: 16 }))),
+      maquettes.length > 0 ? [
+        h('div', { key: 'p', className: 'mt-3 flex gap-1 rounded-lg bg-slate-100 p-1' },
+          onglet('bureau', 'Ce bureau'), onglet('tous', 'Tous les bureaux')),
+        dansPortee.length > 0 ? h('div', { key: 'f', className: 'mt-2.5 flex flex-wrap gap-1.5' },
+          puce('toutes', 'Toutes (' + dansPortee.length + ')'),
+          puce('attente', 'En attente de votre avis (' + nb('attente') + ')'),
+          puce('validee', 'Validées (' + nb('validee') + ')')) : null,
+      ] : null),
+
+    h('div', { className: 'min-h-0 flex-1 overflow-y-auto border-t border-slate-100' },
+      visibles.length > 0
+        ? h('ul', { className: 'divide-y divide-slate-100 py-1' }, visibles.map((m) =>
+            h(LigneMaquette, { key: m.id, m, ouverte: ouvertes.includes(m.id), onOuvrir })))
+        : dansPortee.length > 0
+          ? h('p', { className: 'px-6 py-8 text-center text-[12px] text-slate-500' }, 'Aucune maquette dans cet état.')
+          : h(ListeVide, { portee: maquettes.length ? portee : 'tous', autres, onTous: () => setPortee('tous') })),
+
+    h('div', { className: 'shrink-0 px-4 py-3 border-t border-slate-100 bg-slate-50 sm:rounded-b-xl' },
+      h('p', { className: 'flex items-start gap-1.5 text-[11px] text-slate-500 leading-snug' }, h(Info, { size: 12, className: 'mt-0.5 shrink-0' }),
+        'Visible de tous les participants. Une maquette est une page publiée par un agent : on la regarde, on ne la modifie pas ici.')));
+}
+
+// ============================================================
+// ECRAN COWORK (fil à gauche, onglets à droite)
+// ============================================================
+function Fil({ cache }) {
+  return h('section', { className: (cache ? 'hidden lg:flex ' : 'flex ') + 'min-w-0 w-full flex-col bg-white lg:w-[430px] lg:shrink-0 lg:border-r lg:border-slate-200' },
+    h('header', { className: 'px-4 py-3 border-b border-slate-200' },
+      h('div', { className: 'flex items-center gap-2' },
+        h(MessageSquare, { size: 16, className: 'text-slate-400' }),
+        h('h2', { className: 'font-semibold text-slate-900 text-[15px]' }, 'Conversation avec Somtech'))),
+    h('ul', { className: 'flex-1 min-h-0 overflow-y-auto py-2' },
+      h('li', { className: 'px-4 py-2.5' },
+        h('div', { className: 'flex gap-2.5' },
+          h('span', { className: 'flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-teal-600 text-[11px] font-semibold text-white' }, 'GA'),
+          h('div', { className: 'min-w-0 flex-1' },
+            h('p', { className: 'flex items-baseline gap-2' }, h('span', { className: 'text-[13px] font-semibold text-slate-900' }, 'Gaspé'), h('span', { className: 'text-[11px] text-slate-400' }, '10:42')),
+            h('p', { className: 'text-[13px] text-slate-700 mt-0.5' }, 'Voici la maquette de l’écran des soumissions. Dites-moi si elle vous convient ; vous la retrouverez dans « Maquettes » en haut.'))))),
+    h('div', { className: 'shrink-0 border-t border-slate-200 bg-white px-3 py-2.5' },
+      h('div', { className: 'flex items-end gap-2' },
+        h('textarea', { rows: 1, placeholder: 'Écrire à Gaspé…', className: 'min-h-[38px] flex-1 resize-none rounded-md border border-slate-200 px-2.5 py-2 text-[13px] text-slate-800 placeholder:text-slate-400 focus:border-teal-500 focus:outline-none' }),
+        h('button', { type: 'button', className: 'flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-md bg-teal-600 text-white hover:bg-teal-700', 'aria-label': 'Envoyer' }, h(Send, { size: 15 })))));
+}
+
+function ContenuMaquette({ m }) {
+  return h('div', { className: 'flex h-full flex-col' },
+    h('div', { className: 'shrink-0 flex items-center gap-2 border-b border-slate-200 bg-white px-3 py-1.5' },
+      h(Globe, { size: 13, className: 'text-slate-400' }),
+      h('span', { className: 'min-w-0 flex-1 truncate text-[12px] text-slate-500' }, m.adresse),
+      h(Pastille, { etat: m.etat }),
+      h('button', { type: 'button', className: 'rounded p-1 text-slate-400 hover:bg-slate-100', 'aria-label': 'Recharger' }, h(RefreshCw, { size: 13 }))),
+    h('div', { className: 'flex-1 min-h-0 overflow-auto p-6' },
+      h('div', { className: 'mx-auto max-w-[720px] rounded-lg border border-dashed border-slate-300 bg-white p-6' },
+        h('p', { className: 'text-[11px] uppercase tracking-wide text-slate-400' }, 'Page de la maquette (cadre isolé)'),
+        h('h1', { className: 'mt-1 text-[20px] font-semibold text-slate-900' }, m.titre),
+        h('div', { className: 'mt-4 grid grid-cols-3 gap-3' }, [1, 2, 3].map((n) => h('div', { key: n, className: 'h-16 rounded bg-slate-100' }))),
+        [1, 2, 3].map((n) => h('div', { key: n, className: 'mt-4 h-3 rounded bg-slate-100', style: { width: (95 - n * 12) + '%' } })))));
+}
+
+function Onglets({ onglets, actif, setActif, fermer, visibleMobile, retour }) {
+  const courant = onglets.find((o) => o.cle === actif) || onglets[0];
+  return h('section', { className: (visibleMobile ? 'flex ' : 'hidden lg:flex ') + 'flex-1 min-w-0 flex-col bg-slate-50' },
+    h('div', { className: 'shrink-0 flex items-end gap-1 overflow-x-auto px-2 pt-2 bg-slate-200/70 border-b border-slate-300' },
+      h('button', { type: 'button', onClick: retour, className: 'lg:hidden mb-1 mr-1 inline-flex items-center gap-1 rounded px-1.5 py-1 text-[12px] text-slate-600 hover:bg-slate-300/70' }, h(ArrowLeft, { size: 13 }), 'Fil'),
+      onglets.map((o) => h('div', { key: o.cle,
+        className: 'flex shrink-0 items-center gap-1.5 rounded-t-md pl-3 pr-1.5 py-1.5 text-[12px] ' + (o.cle === courant.cle ? 'bg-white text-slate-900 font-semibold' : 'text-slate-600 hover:bg-slate-300/60') },
+        h('button', { type: 'button', onClick: () => setActif(o.cle), className: 'flex items-center gap-1.5' },
+          h(o.nature === 'adresse' ? Layout : FileText, { size: 13, className: o.nature === 'adresse' ? 'text-teal-600' : '' }), o.titre),
+        h('button', { type: 'button', onClick: () => fermer(o.cle), className: 'rounded p-0.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700', 'aria-label': 'Fermer l’onglet' }, h(X, { size: 11 })))),
+      h('button', { type: 'button', className: 'mb-1 ml-1 rounded p-1.5 text-slate-500 hover:bg-slate-300/70', 'aria-label': 'Ouvrir un document' }, h(Plus, { size: 14 }))),
+    h('div', { className: 'flex-1 min-h-0' },
+      !courant ? h('p', { className: 'p-8 text-[13px] text-slate-500' }, 'Aucun onglet ouvert.')
+      : courant.nature === 'adresse' ? h(ContenuMaquette, { m: MAQUETTES.find((m) => m.id === courant.cle) })
+      : h('div', { className: 'h-full overflow-auto p-8' },
+          h('div', { className: 'mx-auto max-w-[640px] rounded-lg bg-white p-8 shadow-sm border border-slate-200' },
+            h('h1', { className: 'text-[20px] font-semibold text-slate-900' }, courant.titre),
+            h('p', { className: 'mt-3 text-[13px] text-slate-600 leading-relaxed' }, 'Document d’exemple. Dans le vrai écran, c’est ici que s’ouvrent les documents du bureau.')))));
+}
+
+// ============================================================
+// BANDEAU DE MAQUETTE (hors écran réel)
+// ============================================================
+function Bandeau({ vide, setVide }) {
+  const choix = (v, mot) => h('button', { key: mot, type: 'button', onClick: () => setVide(v),
+    className: 'rounded-full px-2.5 py-0.5 ' + (vide === v ? 'bg-white text-slate-900 font-semibold' : 'bg-slate-700 hover:bg-slate-600') }, mot);
+  return h('div', { className: 'relative z-40 shrink-0 flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-slate-900 px-3 py-2 text-[12px] text-slate-200' },
+    h('span', { className: 'rounded bg-amber-400 px-1.5 py-0.5 text-[10px] font-bold uppercase text-slate-900' }, 'Maquette'),
+    h('span', { className: 'text-slate-400' }, 'Données d’exemple — T-20261002-0038. Simuler :'),
+    choix(false, 'Liste remplie'), choix(true, 'Liste vide'));
+}
+
+function App() {
+  const [vide, setVide] = useState(false);
+  const [ouvert, setOuvert] = useState(true);
+  const [onglets, setOnglets] = useState(DOCUMENTS);
+  const [actif, setActif] = useState('d1');
+  const [vueMobile, setVueMobile] = useState('fil');
+  const maquettes = vide ? [] : MAQUETTES;
+  const enAttente = maquettes.filter((m) => m.etat === 'attente').length;
+
+  useEffect(() => {
+    const f = (ev) => { if (ev.key === 'Escape') setOuvert(false); };
+    window.addEventListener('keydown', f);
+    return () => window.removeEventListener('keydown', f);
+  }, []);
+  const simuler = (v) => { setVide(v); setOnglets(DOCUMENTS); setActif('d1'); setVueMobile('fil'); };
+
+  const ouvrir = (m) => {
+    // Déjà ouverte : on la montre, on n'en ouvre pas une seconde.
+    setOnglets((os) => os.some((o) => o.cle === m.id) ? os : [...os, { cle: m.id, nature: 'adresse', titre: m.titre }]);
+    setActif(m.id);
+    setOuvert(false);
+    setVueMobile('onglets');
+  };
+  const fermer = (cle) => setOnglets((os) => {
+    const reste = os.filter((o) => o.cle !== cle);
+    if (cle === actif && reste.length) setActif(reste[reste.length - 1].cle);
+    return reste;
+  });
+
+  return h('div', { className: 'h-full flex flex-col' },
+    h(Bandeau, { vide, setVide: simuler }),
+    h('div', { className: 'relative shrink-0 flex flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-3 py-2' },
+      h('button', { type: 'button', className: 'inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-[12px] text-slate-700 hover:bg-slate-50' },
+        h('span', { className: 'font-semibold' }, 'Bureau : ' + BUREAU_ACTIF), h(ChevronDown, { size: 13, className: 'text-slate-400' })),
+      h('button', { type: 'button', className: 'inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[12px] text-slate-700 hover:bg-slate-50' },
+        h('span', { className: 'flex h-6 w-6 items-center justify-center rounded-full bg-teal-600 text-[10px] font-semibold text-white' }, 'GA'),
+        h('span', { className: 'font-semibold' }, 'Agent'), h(ChevronDown, { size: 13, className: 'text-slate-400' })),
+      h(BoutonMaquettes, { ouvert, enAttente, onClick: () => setOuvert(!ouvert) }),
+      h('span', { className: 'ml-auto text-[11px] text-slate-400 hidden md:inline' }, 'Cowork'),
+      ouvert ? h(PanneauMaquettes, { maquettes, ouvertes: onglets.map((o) => o.cle), onOuvrir: ouvrir, onFermer: () => setOuvert(false) }) : null),
+    ouvert ? h('div', { className: 'fixed inset-0 z-20 bg-slate-900/30 sm:hidden', onClick: () => setOuvert(false) }) : null,
+    h('div', { className: 'flex-1 min-h-0 flex overflow-hidden' },
+      h(Fil, { cache: vueMobile === 'onglets' }),
+      h(Onglets, { onglets, actif, setActif, fermer, visibleMobile: vueMobile === 'onglets', retour: () => setVueMobile('fil') })));
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(h(App));
+  </script>
+</body>
+</html>
