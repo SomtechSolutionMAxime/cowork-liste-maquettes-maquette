@@ -230,22 +230,22 @@ function Onglets({ onglets, actif, setActif, fermer, visibleMobile, retour }) {
 // ============================================================
 // BANDEAU DE MAQUETTE (hors écran réel)
 // ============================================================
-function Bandeau({ vide, setVide }) {
-  const choix = (v, mot) => h('button', { key: mot, type: 'button', onClick: () => setVide(v),
-    className: 'rounded-full px-2.5 py-0.5 ' + (vide === v ? 'bg-white text-slate-900 font-semibold' : 'bg-slate-700 hover:bg-slate-600') }, mot);
+function Bandeau({ mode, setMode }) {
+  const choix = (v, mot) => h('button', { key: mot, type: 'button', onClick: () => setMode(v),
+    className: 'rounded-full px-2.5 py-0.5 ' + (mode === v ? 'bg-white text-slate-900 font-semibold' : 'bg-slate-700 hover:bg-slate-600') }, mot);
   return h('div', { className: 'relative z-40 shrink-0 flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-slate-900 px-3 py-2 text-[12px] text-slate-200' },
     h('span', { className: 'rounded bg-amber-400 px-1.5 py-0.5 text-[10px] font-bold uppercase text-slate-900' }, 'Maquette'),
     h('span', { className: 'text-slate-400' }, 'Données d’exemple — T-20261002-0038. Simuler :'),
-    choix(false, 'Liste remplie'), choix(true, 'Liste vide'));
+    choix('remplie', 'Liste remplie'), choix('autres', 'Rien dans ce bureau'), choix('vide', 'Liste vide'));
 }
 
 function App() {
-  const [vide, setVide] = useState(false);
+  const [mode, setMode] = useState('remplie');
   const [ouvert, setOuvert] = useState(true);
   const [onglets, setOnglets] = useState(DOCUMENTS);
   const [actif, setActif] = useState('d1');
   const [vueMobile, setVueMobile] = useState('fil');
-  const maquettes = vide ? [] : MAQUETTES;
+  const maquettes = mode === 'vide' ? [] : mode === 'autres' ? MAQUETTES.filter((m) => m.bureau !== BUREAU_ACTIF) : MAQUETTES;
   const enAttente = maquettes.filter((m) => m.etat === 'attente').length;
 
   useEffect(() => {
@@ -253,7 +253,7 @@ function App() {
     window.addEventListener('keydown', f);
     return () => window.removeEventListener('keydown', f);
   }, []);
-  const simuler = (v) => { setVide(v); setOnglets(DOCUMENTS); setActif('d1'); setVueMobile('fil'); };
+  const simuler = (v) => { setMode(v); setOnglets(DOCUMENTS); setActif('d1'); setVueMobile('fil'); };
 
   const ouvrir = (m) => {
     // Déjà ouverte : on la montre, on n'en ouvre pas une seconde.
@@ -269,7 +269,7 @@ function App() {
   });
 
   return h('div', { className: 'h-full flex flex-col' },
-    h(Bandeau, { vide, setVide: simuler }),
+    h(Bandeau, { mode, setMode: simuler }),
     h('div', { className: 'relative shrink-0 flex flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-3 py-2' },
       h('button', { type: 'button', className: 'inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-[12px] text-slate-700 hover:bg-slate-50' },
         h('span', { className: 'font-semibold' }, 'Bureau : ' + BUREAU_ACTIF), h(ChevronDown, { size: 13, className: 'text-slate-400' })),
@@ -278,7 +278,7 @@ function App() {
         h('span', { className: 'font-semibold' }, 'Agent'), h(ChevronDown, { size: 13, className: 'text-slate-400' })),
       h(BoutonMaquettes, { ouvert, enAttente, onClick: () => setOuvert(!ouvert) }),
       h('span', { className: 'ml-auto text-[11px] text-slate-400 hidden md:inline' }, 'Cowork'),
-      ouvert ? h(PanneauMaquettes, { maquettes, ouvertes: onglets.map((o) => o.cle), onOuvrir: ouvrir, onFermer: () => setOuvert(false) }) : null),
+      ouvert ? h(PanneauMaquettes, { key: mode, maquettes, ouvertes: onglets.map((o) => o.cle), onOuvrir: ouvrir, onFermer: () => setOuvert(false) }) : null),
     ouvert ? h('div', { className: 'fixed inset-0 z-20 bg-slate-900/30 sm:hidden', onClick: () => setOuvert(false) }) : null,
     h('div', { className: 'flex-1 min-h-0 flex overflow-hidden' },
       h(Fil, { cache: vueMobile === 'onglets' }),
